@@ -98,4 +98,4 @@ export const useCourseStore = defineStore('course', () => {
         getCoursesByInstructor,
         getCourses
     }
-}) 
+})

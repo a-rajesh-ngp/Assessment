@@ -42,6 +42,7 @@ const fetchCourses = async () => {
     
     let res = null
     if(authStore.user.role==='instructor') {
+      console.log('instructor')
       res = await courseStore.getCoursesByInstructor()
     } else {
       res = await courseStore.getCourses()
