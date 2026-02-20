@@ -62,7 +62,7 @@ export const useCourseStore = defineStore('course', () => {
     }   
 
     async function getCoursesByInstructor() {
-        try { 
+        try {
             loading.value = true
             const res = await getAllCoursesByInstructor()
             return res.data

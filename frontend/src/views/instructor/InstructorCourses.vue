@@ -41,7 +41,7 @@ let courses = reactive([])
 const fetchCourses = async () => {
     
     let res = null
-    if(authStore.user.role=='instructor') {
+    if(authStore.user.role==='instructor') {
       res = await courseStore.getCoursesByInstructor()
     } else {
       res = await courseStore.getCourses()

@@ -13,7 +13,7 @@ export const addLessonInCourse = (courseId,payload) => {
 }
 
 export const getAllCoursesByInstructor = () => {
-    return api.get("/instructor/courses")
+    return api.get('/instructor/coursesByInstructor')
 }
 
 export const getAllCourses = () => {

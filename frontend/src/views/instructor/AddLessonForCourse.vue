@@ -8,7 +8,7 @@
     <v-card>
       <v-card-title class="d-flex justify-space-between">
         Lessons
-        <v-btn color="primary" :disabled="authStore.user.role!=='instructor'" @click="dialog=true">Add Lesson</v-btn>
+        <v-btn color="primary" v-if="authStore.user.role==='instructor'" @click="dialog=true">Add Lesson</v-btn>
       </v-card-title>
 
       <v-divider />
