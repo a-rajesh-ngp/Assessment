@@ -7,6 +7,11 @@ export default class UsersController {
 
     async createUser({request}: HttpContext) {
         const validatedData = await request.validateUsing(createUserValidator);
-        return this.usersRepository.createUser(validatedData);
+        const res = await this.usersRepository.createUser(validatedData);
+        return {
+            status: 'success',
+            message: "Created a user successfully.",
+            data: res
+        };
     }
 }

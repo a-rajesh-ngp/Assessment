@@ -6,7 +6,7 @@ export default class File extends BaseModel {
   declare id: number
 
   @column()
-  declare filename: string
+  declare fileName: string
 
   @column()
   declare path: string

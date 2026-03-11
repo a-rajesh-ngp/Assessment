@@ -28,6 +28,20 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       })
     }
 
+    if (error.code === 'E_UNAUTHENTICATED') {
+      return ctx.response.status(401).json({
+        status: 'error',
+        message: error.message,
+      })
+    }
+
+    if (error.code === 'E_FORBIDDEN') {
+      return ctx.response.status(403).json({
+        status: 'error',
+        message: error.message,
+      })
+    }
+
     if (error.code === 'E_ROUTE_NOT_FOUND') {
       return ctx.response.status(404).json({
         status: 'error',
@@ -38,7 +52,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
     if (error.code === 'E_VALIDATION_ERROR') {
       return ctx.response.status(422).json({
         status: 'error',
-        message: 'Validation failed',
+        message: error.message || 'Validation failed',
         errors: error.messages,
       })
     } 
@@ -68,15 +82,19 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         code: 'INVALID_TOKEN',
       })
     }
-    if (
-    //   error.code === '3D000' || 
-    //   error.code === '28P01' || 
-      error.code === 'ECONNREFUSED' || error.code === 'EREQUEST') {
+    if (error.code === 'ECONNREFUSED' || error.code === 'EREQUEST') {
         logger.error('DATABASE CONNECTION LOST')
         return ctx.response.status(503).send({
           status: 'error',
           message: 'Service temporarily unavailable (Database Error).',
         })
+    }
+    if(error.code ==='E_DOMAIN_ERROR') {
+      return ctx.response.status(500).json({
+        status: 'error',
+        message: error.message,
+        code: 'E_DOMAIN_ERROR',
+      })
     }
 
     const statusCode = error.status || 500

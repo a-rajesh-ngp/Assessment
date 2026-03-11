@@ -1,12 +1,10 @@
 import User from "#models/user";
-import LoginDomain from "../domains/login_domain.js";
-import { signJwt } from "../utils/jwt.js";
+import { signJwt } from "../services/jwt.js";
 import { Exception } from '@adonisjs/core/exceptions'
 
 export default class AuthRepository{
-    protected loginDomain = new LoginDomain()
 
-    async login(email: string, password: string) {
+    async login(response: unknown, email: string, password: string) {
         const user: User = await User.findByOrFail('email', email);
         const isPasswordValid: Boolean = user.password===password;
         if (!isPasswordValid) {
@@ -17,8 +15,9 @@ export default class AuthRepository{
         }
         
         const token: string = signJwt({userId: user.id, email: user.email, role: user.role});
-        return this.loginDomain.login(token);
-        
+        return {
+            token,
+            type: 'Bearer'
+        }
     }
-
 }

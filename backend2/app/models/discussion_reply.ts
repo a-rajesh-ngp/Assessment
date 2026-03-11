@@ -4,6 +4,7 @@ import Discussion from './discussion.js'
 import User from './user.js'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 
+
 export default class DiscussionReply extends BaseModel {
   @column({ isPrimary: true })
   declare id: number

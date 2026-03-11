@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
-import { verifyJwt } from '../utils/jwt.js';
+import { verifyJwt } from '../services/jwt.js';
 import User from '#models/user';
 
 export default class JwtAuthMiddleware {

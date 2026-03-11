@@ -17,7 +17,13 @@ export default class Submission extends BaseModel {
   declare userId: number
 
   @column()
-  declare fileId: string
+  declare enrollmentId: number
+
+  @column()
+  declare fileId: number | null
+
+  @column()
+  declare status: 'submitted' | 'graded' | 'resubmitted'
 
   @belongsTo(() => File)
   declare file: BelongsTo<typeof File>  

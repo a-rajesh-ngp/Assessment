@@ -1,3 +1,4 @@
+import { authGaurd } from '@/middlewares/authMiddleware'
 import AddLessonForCourse from '@/views/instructor/AddLessonForCourse.vue'
 import CreateCourse from '@/views/instructor/CreateCourse.vue'
 import InstructorCourses from '@/views/instructor/InstructorCourses.vue'
@@ -9,8 +10,12 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/',
+      redirect: '/login'
+    },
+    {
       path: '/signup',
-      component: Signup
+      component: Signup,
     },
     {
       path: '/login',
@@ -18,18 +23,23 @@ const router = createRouter({
     },
     {
       path: '/instructor/createCourse',
-      component: CreateCourse
+      component: CreateCourse,
+      meta: {requiresAuth: true}
     },
     {
-      path: '/instructor/courses/:courseId',
-      component: AddLessonForCourse
+      path: '/courses/:courseId',
+      component: AddLessonForCourse,
+      meta: {requiresAuth: true}
     },
     {
-      path: '/instructor/viewCourses',
-      component: InstructorCourses
+      path: '/viewCourses',
+      component: InstructorCourses,
+      meta: {requiresAuth: true}
     },
     
   ],
 })
+
+router.beforeEach(authGaurd)
 
 export default router

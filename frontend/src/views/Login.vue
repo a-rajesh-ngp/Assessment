@@ -78,6 +78,10 @@
     const router = useRouter();
     const route = useRoute();
     const authStore = useAuthStore()
+    if(authStore.isAuthenticated) {
+        authStore.logout()
+    }
+
     const formRef = ref(null)
     const email = ref('')
     const password = ref('')
@@ -99,11 +103,8 @@
                 email: email.value,
                 password: password.value
             })
-            if(authStore.user.role=='instructor') {
-                router.push('/instructor/createCourse')
-            } else {
-                router.push('/instructor/viewCourses')
-            }
+            
+                router.push('/viewCourses')
         } catch(err) {
             console.log(err)
         }

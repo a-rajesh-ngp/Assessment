@@ -1,67 +1,164 @@
 import Course from "#models/course";
 import Lesson from "#models/lesson";
-import { HttpContext } from "@adonisjs/core/http";
-import CoursesDomain from "../../domains/instructor/courses_domain.js";
-
+import Enrollment from "#models/enrollment";
+import User from "#models/user";
+import { Exception } from "@adonisjs/core/exceptions";
+import { MultipartFile } from "@adonisjs/core/bodyparser";
+import Discussion from "#models/discussion";
+import DiscussionReply from "#models/discussion_reply";
+import CoursesDomain2 from "../../domains/instructor/courses.js";
+import LessonsDomain from "../../domains/lessons.js";
+import AssignmentDomain from "../../domains/assignments.js";
 
 export default class CoursesRepository {
+
+    async getDiscussionById(validatedData: { params: { courseId: number; discussionId: number; }; }) {
+        
+        const discussion = await Discussion.query()
+            .join('users', 'users.id', 'discussions.user_id')
+            .where('discussions.id', validatedData.params.discussionId)
+            .where('discussions.course_id', validatedData.params.courseId)
+            .select(
+                'discussions.id',
+                'discussions.title',
+                'discussions.body',
+                'discussions.created_at',
+                'users.id as user_id',
+                'users.username as user_name',
+                'users.email as user_email'
+            )
+            .first()
+
+        if(!discussion) {
+            throw new Exception('Discussion not found', {
+                status: 404
+            })
+        }
+
+        const replies = await DiscussionReply.query()
+            .join('users', 'users.id', 'discussion_replies.user_id')
+            .where('discussion_replies.discussion_id', validatedData.params.discussionId)
+            .orderBy('discussion_replies.created_at', 'asc')
+            .select(
+                'discussion_replies.id',
+                'discussion_replies.body',
+                'discussion_replies.created_at',
+                'users.id as user_id',
+                'users.username as user_name',
+                'users.email as user_email'
+            )
+
+        return {
+            id: discussion.id,
+            title: discussion.title,
+            body: discussion.body,
+            createdAt: discussion.createdAt,
+            user: {
+                id: discussion.$extras.user_id,
+                username: discussion.$extras.username,
+                email: discussion.$extras.user_email,
+            },
+            replies: replies.map((reply) => ({
+                id: reply.id,
+                body: reply.body,
+                createdAt: reply.$extras.created_at,
+                user: {
+                    id: reply.$extras.user_id,
+                    username: reply.$extras.user_name,
+                    email: reply.$extras.user_email,
+                },
+            })),
+        }
+
+    }
+
+    async createReply(user: User | undefined, validatedData: { params: { courseId: number; discussionId: number; }; body: string; }) {
+        const discussion = await Discussion.query()
+            .where('id', validatedData.params.discussionId)
+            .where('courseId', validatedData.params.courseId)
+            .first()
+
+        if(!discussion) {
+            throw new Exception('Discussion not found', { status: 404 })
+        }
+
+        const reply = await DiscussionReply.create({
+            discussionId: discussion.id,
+            userId: user?.id,
+            body: validatedData.body
+        })
+
+        return reply
+
+    }
+
+    async getDiscussions(validatedData: { params: { courseId: number; }; }) {
+        const discussions = await Discussion.query()
+            .join('users', 'users.id', 'discussions.user_id')
+            .where('courseId', validatedData.params.courseId)
+            .select([
+                'discussions.id',
+                'discussions.title',
+                'discussions.body',
+                'discussions.created_at as createdAt',
+                'users.id as userId',
+                'users.username as username',
+                'users.email as email',
+            ])
+            .orderBy('discussions.created_at', 'desc')
+
+        return discussions.map((row) => ({
+            id: row.id,
+            title: row.title,
+            body: row.body,
+            createdAt: row.createdAt,
+            user: {
+                id: row.userId,
+                username: row.$extras.username,
+                email: row.$extras.email,
+            },
+        }))
+
+    }
     
-    
-    protected coursesDomain = new CoursesDomain();
+    async createDiscussion(user: User | undefined, validatedData: { title: string; params: { courseId: number; }; body: string; }) {
+        const discussion = await Discussion.create({
+            courseId: validatedData.params.courseId,
+            userId: user!.id,
+            title: validatedData.title,
+            body: validatedData.body
+        })
+        return discussion
+    }
 
     async createCourse(instructorId: number| undefined, validatedData: { title: string; description: string}) {
         const course: Course = await Course.create({...validatedData, instructorId: instructorId});
-        return this.coursesDomain.createCourse(course)
+        return new CoursesDomain2(course)
     }
 
-    async addLessonInCourse({request, response, user}: HttpContext, validatedData: { title: string; type: "video" | "text" | "coding"; content?: string; params: { courseId: number; }; }) {
+    async addLessonInCourse(request: any, response: any, user: User | undefined, validatedData: { title: string; type: "video" | "text" | "coding"; content?: string; video?: MultipartFile; params: { courseId: number; }; }) {
         
-        const { params, title, type, content }= validatedData
+        const { params, title, type, content, video }= validatedData
         const course = await Course.findOrFail(params.courseId)
 
         if (course.instructorId !== user!.id) {
-            return response.status(403).send({
-                status: 'error',
-                message: 'you are not allowed to add lesson in this course'
+            throw new Exception('you are not allowed to add lesson in this course', {
+                status: 403,
+                code: 'E_FORBIDDEN',
             })
         }
 
-        if ((type === 'text' || type === 'coding') && !content) {
-            return response.status(403).send({
-                status: 'error',
-                message: 'Content is required for text or coding lessons',
-            })
-        }
 
         let finalContent: string
-        if (type === 'video') {
-            const video = request.file('video', {
-                size: '500mb',
-                extnames: ['mp4', 'mov', 'mkv'],
-            })
-
-            if (!video || !video.isValid) {
-                return response.status(400).send({
-                    status: 'error',
-                    message: 'video file is not valid',
-                })
-            }
+        if (type === 'video' && video) {
 
             const fileName = `${crypto.randomUUID()}.${video.extname}`
             const filePath = `videos/${fileName}`
 
             await video.moveToDisk(filePath, 'fs')
             finalContent = filePath
-        }
-
-        if (type === 'text' || type === 'coding') {
-            if (!content) {
-                return response.status(400).send({
-                    status: 'error',
-                    message: 'content is required for text or coding lessons',
-                })
-            }
-            finalContent = content
+        } else {
+            finalContent = content!
         }
 
 
@@ -78,46 +175,168 @@ export default class CoursesRepository {
             content: finalContent!,
             order: nextOrder
         })
-        return this.coursesDomain.addLessonInCourse(lesson)
+
+        return new LessonsDomain(lesson).toJSON()
+
     }
 
 
-    async getCourseDetailsById({user, response}: HttpContext, validatedData: { params: { courseId: number; }; }) {
-        const course = await Course.query()
-            .where('id', validatedData.params.courseId)
-            .preload('lessons', (query) => {
-                query.orderBy('order', 'asc')
-            })
+    async getCourseDetailsById(user: User | undefined, validatedData: { params: { courseId: number; }; }) {
+        const isInstructor = user!.role === 'instructor'
+        const courseId = validatedData.params.courseId
+        const enrollment = await Enrollment.query()
+            .where('userId', user!.id)
+            .where('courseId', courseId)
             .first()
 
-
-        if (!course) {
-            return response.status(404).send({
-                status: 'error',
-                message: 'Course not found',
+        const course = await Course.query()
+            .where('id', courseId)
+            .preload('lessons', (lessonQuery) => {
+                lessonQuery
+                    .orderBy('order', 'asc')
+                    .preload('progress', (progressQuery)=> {
+                        if(enrollment) {
+                            progressQuery.where('enrollmentId', enrollment.id)
+                        }
+                    })
+                    .preload('assignments', (assignmentQuery) => {
+                        assignmentQuery.preload('submissions', (submissionQuery) => {
+                            if(!isInstructor && enrollment) {
+                                submissionQuery.where('enrollmentId', enrollment.id)
+                            }
+                            if(isInstructor) {
+                                submissionQuery
+                                    .preload('student', (userQuery) => {
+                                        userQuery.select(['id', 'username', 'email'])
+                                    })
+                                    .preload('file', (fileQuery) => {
+                                        fileQuery.select(['id', 'path', 'disk', 'mimeType'])
+                                    })  
+                            }
+                            submissionQuery.preload('grade')
+                        })
+                    })
             })
+            .firstOrFail()
+
+        const lessonDomains = course.lessons.map((lesson)=> {
+            const assignmentDomains = lesson.assignments.map((assignment) => {
+                return new AssignmentDomain(assignment.serialize(), isInstructor)
+            })
+
+            return new LessonsDomain(
+                {
+                    ...lesson.toJSON(), 
+                    completed: !!enrollment && lesson.progress.length > 0 && lesson.progress[0].completed
+                },
+                assignmentDomains
+            )
+        })
+
+        const courseDomains = new CoursesDomain2(
+            course.serialize(),
+            lessonDomains,
+            !!enrollment
+        )
+
+        return courseDomains.toJSON()
+
+        const lessons = course.lessons.map((lesson) => {
+            return {
+                id: lesson.id,
+                title: lesson.title,
+                type: lesson.type,
+                content: lesson.content,
+                order: lesson.order,
+                completed: !!enrollment && lesson.progress.length>0 && lesson.progress[0].completed ===true,
+                assignments: lesson.assignments.map((assignment) => {
+                    return {
+                        id: assignment.id,
+                        title: assignment.title,
+                        description: assignment.description,
+                        isSubmissionAllowed: assignment.isSubmissionAllowed,
+                        createdAt: assignment.createdAt,
+                        submission: !isInstructor? 
+                            assignment.submissions.length? {
+                            id: assignment.submissions[0].id,
+                            status: assignment.submissions[0].status,
+                            grade: assignment.submissions[0].grade
+                                ? assignment.submissions[0].grade.score
+                                : null,
+                        } : null 
+                        : undefined,
+                        submissions: isInstructor? 
+                            assignment.submissions.map((submission) => ({
+                                id: submission.id,
+                                status: submission.status,
+                                file: submission.file? {
+                                    id: submission.file.id,
+                                    path: submission.file.path,
+                                }: null,
+                                student: {
+                                    id: submission.student.id,
+                                    name: submission.student.username,
+                                    email: submission.student.email,
+                                },
+                                grade: submission.grade
+                                ? submission.grade.score
+                                : null,
+
+                            })) : undefined,
+                    }
+                })
+            }
+        })
+
+    }
+
+
+    async getInstructorCourses(user: User | undefined, validatedData: { limit: number; page: number; }) {
+        const paginator = await Course.query().where('instructorId', user!.id).paginate(validatedData.page, validatedData.limit)
+
+        return {
+            meta: paginator.getMeta(),
+            data: CoursesDomain2.fromCollections(paginator.all())
         }
-
-        // if (course.instructorId !== user!.id) {
-        //     return response.status(403).send({
-        //         status: 'error',
-        //         message: 'You are not allowed to access this course',
-        //     })
-        // }
-
-        return this.coursesDomain.getCourseDetailsById(course)
     }
 
+    async getAllCourses(user: User | undefined, response: unknown, validatedData: { limit: number; page: number; }) {
+        const paginator = await Course.query().paginate(validatedData.page, validatedData.limit)
+        const enrollments = await Enrollment.query()
+            .where('userId', user!.id)
+            .select('courseId')
+        const enrolledSet = new Set(enrollments.map(e => e.courseId))
 
-    async getInstructorCourses({user, response}: HttpContext) {
-        const courses = await Course.query().where('instructorId', user!.id)
-        
-        return this.coursesDomain.getInstructorCourses(courses)
+        const courses =  paginator.all().map(course => 
+            new CoursesDomain2({...course.toJSON(), enrolled: enrolledSet.has(course.id)}).toJSON()
+        )
+        return {
+            meta: paginator.getMeta(),
+            data: courses
+        }
     }
 
-    async getAllCourses({response} :HttpContext) {
-        const courses = await Course.query().preload('lessons')
-        return this.coursesDomain.getAllCourses(courses)
-    }
+    // async create
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

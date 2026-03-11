@@ -11,7 +11,7 @@
             Create Course
         </v-btn>
 
-        <v-btn v-if="authStore.isAuthenticated" variant="text" to="/instructor/viewCourses">
+        <v-btn v-if="authStore.isAuthenticated" variant="text" to="/viewCourses">
             View Courses
         </v-btn>
         

@@ -9,13 +9,14 @@
                     </v-card-title>
 
                     <v-card-text>
-                        <v-form @submit.prevent="submitSignup">
+                        <v-form ref="form" @submit.prevent="submitSignup">
                     
-                            <v-text-field 
+                            <v-text-field
                                 v-model="formData.username"
                                 label="User Name"
                                 variant="outlined"
                                 prepend-inner-icon="mdi-account"
+                                :rules="usernameRules"
                                 required
                             />
                             
@@ -25,13 +26,15 @@
                                 variant="outlined"
                                 prepend-inner-icon="mdi-email"
                                 type="email"
+                                :rules="emailRules"
                                 required
                             />
-                            <v-select 
+                            <v-select
                                 v-model="formData.role"
                                 :items = "roles"
                                 label="Role"
                                 variant="outlined"
+                                :rules="[required]"
                                 prepend-inner-icon="mdi-account-badge"
                                 required
                             />
@@ -41,6 +44,7 @@
                                 variant="outlined"
                                 prepend-inner-icon="mdi-lock"
                                 type="password"
+                                :rules="passwordRules"
                                 required
                             />
                             <v-text-field
@@ -49,6 +53,7 @@
                                 variant="outlined"
                                 prepend-inner-icon="mdi-lock-check"
                                 type="password"
+                                :rules="[required]"
                                 required
                             />
                             <v-btn
@@ -59,6 +64,14 @@
                                 >
                                 Sign up
                             </v-btn>
+                            <v-snackbar
+                                v-model="showSnackBar"
+                                :color="snackBarColor"
+                                timeout="3000"
+                                location="top"
+                            >
+                                {{ snackBarText }}
+                            </v-snackbar>
                             
                             <v-alert
                                 v-if="authStore.error"
@@ -99,6 +112,25 @@
     const router = useRouter();
     const authStore = useAuthStore()
 
+    const showSnackBar = ref(false)
+    const snackBarText = ref('')
+    const snackBarColor = ref('success')
+
+    const required = v => !!v || 'This field is required'
+    const usernameRules= [
+        required,
+        v=> /^[a-z0-9_]+$/.test(v) || 'Username should have characters, underscore and numbers only'
+    ]
+    const emailRules = [
+        required,
+        v => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v) || 'Email is not valid',
+    ]
+    const passwordRules = [
+        required,
+        v => v.length >= 6 || 'Password must be at least 6 characters',
+    ]
+
+    const form = ref()
     const formData = reactive({
         username: '',
         email: '',
@@ -114,10 +146,16 @@
     ])
 
     const submitSignup = async() => {
+        const {valid} = await form.value.validate()
+        if(!valid) return
+
         if(formData.password!==confirmPassword.value) {
-            alert('Passwords do not match')
+            snackBarColor.value = 'error'
+            snackBarText.value = 'Passwords do not match'
+            showSnackBar.value = true
             return
         }
+
         const payload = {
             username: formData.username,
             email: formData.email,
@@ -126,10 +164,15 @@
         }
         try {
             const res = await authStore.signup(payload)
+            snackBarColor.value = 'success'
+            snackBarText.value = 'Signed up successfully'
+            showSnackBar.value = true
 
-            router.push({
-                path: '/login'
-            })
+            setTimeout(() => {
+                router.push({
+                    path: '/login'
+                })
+            }, 1000)
             
         } catch(err) {
             console.error(err.errors)

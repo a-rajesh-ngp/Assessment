@@ -1,9 +1,9 @@
 import api from "./http";
 
-export const signupApi = (payload) => {
-    return api.post('/signup', payload)
+export const signupApi = async (payload) => {
+    return await api.post('/signup', payload)
 }
 
-export const loginApi = (payload) => {
-    return api.post('/login', payload)
+export const loginApi = async(payload) => {
+    return await api.post('/login', payload)
 }

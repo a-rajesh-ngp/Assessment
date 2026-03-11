@@ -16,6 +16,8 @@ export default class Grade extends BaseModel {
   @belongsTo(() => Submission)
   declare submission : BelongsTo<typeof Submission>
 
+  
+
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

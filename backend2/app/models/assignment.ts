@@ -17,6 +17,9 @@ export default class Assignment extends BaseModel {
   @column()
   declare description: string
 
+  @column()
+  declare isSubmissionAllowed: boolean
+
   @belongsTo(() => Lesson)
   declare lesson: BelongsTo<typeof Lesson>
 

@@ -4,7 +4,7 @@ import { Infer } from '@vinejs/vine/types'
 export const loginValidator = vine.compile(
     vine.object({
         email: vine.string().email(),
-        password: vine.string()
+        password: vine.string().trim()
     })
 )
 
